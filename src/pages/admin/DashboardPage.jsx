@@ -3,9 +3,10 @@ import { DashboardLayout } from '@/components/templates/DashboardLayout/Dashboar
 import { KpiCard } from '@/components/molecules/KpiCard/KpiCard'
 import { GraficosSection } from '@/components/organisms/GraficosSection/GraficosSection'
 import { TablaMovimientos } from '@/components/organisms/TablaMovimientos/TablaMovimientos'
-import { FiPackage, FiAlertTriangle, FiRepeat, FiTrendingUp } from 'react-icons/fi'
+import { FiPackage, FiAlertTriangle, FiRepeat, FiClipboard } from 'react-icons/fi'
 import { materialesService } from '@/services/materialesService'
 import { movimientosService } from '@/services/movimientosService'
+import { prestamosService } from '@/services/prestamosService'
 import { useAuth } from '@/hooks/useAuth'
 
 const saludo = () => {
@@ -20,24 +21,26 @@ export default function DashboardPage() {
   const primerNombre = user?.nombre?.split(' ')[0] ?? ''
 
   const [kpis, setKpis] = useState([
-    { titulo: 'Total Materiales', valor: '—', icono: FiPackage,      color: 'green'  },
-    { titulo: 'Stock Bajo',       valor: '—', icono: FiAlertTriangle, color: 'red'    },
-    { titulo: 'Movimientos Hoy',  valor: '—', icono: FiRepeat,        color: 'blue'   },
-    { titulo: 'Activos en total', valor: '—', icono: FiTrendingUp,    color: 'purple' },
+    { titulo: 'Total Materiales',     valor: '—', icono: FiPackage,      color: 'green'  },
+    { titulo: 'Stock Bajo',           valor: '—', icono: FiAlertTriangle, color: 'red'    },
+    { titulo: 'Movimientos Hoy',      valor: '—', icono: FiRepeat,        color: 'blue'   },
+    { titulo: 'Préstamos Pendientes', valor: '—', icono: FiClipboard,     color: 'yellow' },
   ])
 
   useEffect(() => {
     const cargar = async () => {
       try {
-        const [materiales, consumibles, movimientos] = await Promise.all([
+        const [materiales, consumibles, movimientos, prestamos] = await Promise.all([
           materialesService.getAll().catch(() => []),
           materialesService.getAllConsumibles().catch(() => []),
           movimientosService.getAll().catch(() => []),
+          prestamosService.getAll().catch(() => []),
         ])
 
         const matList  = Array.isArray(materiales)  ? materiales  : (materiales?.data  ?? [])
         const consList = Array.isArray(consumibles) ? consumibles : (consumibles?.data ?? [])
         const movList  = Array.isArray(movimientos) ? movimientos : (movimientos?.data  ?? [])
+        const presList = Array.isArray(prestamos)   ? prestamos   : (prestamos?.data   ?? [])
 
         const stockBajo = consList.filter(
           (c) => Number(c.stockActual ?? 0) <= Number(c.stockMinimo ?? 0)
@@ -48,11 +51,15 @@ export default function DashboardPage() {
           (m.fecha ?? m.creadoEn ?? '').toString().startsWith(hoy)
         ).length
 
+        const pendientes = presList.filter(
+          (p) => (p.estado ?? '').toLowerCase() === 'pendiente'
+        ).length
+
         setKpis([
-          { titulo: 'Total Materiales', valor: matList.length.toString(),  icono: FiPackage,       color: 'green',  subtitulo: 'en inventario' },
-          { titulo: 'Stock Bajo',       valor: stockBajo.toString(),        icono: FiAlertTriangle, color: 'red',    subtitulo: 'requieren atención' },
-          { titulo: 'Movimientos Hoy',  valor: movHoy.toString(),           icono: FiRepeat,        color: 'blue',   subtitulo: 'entradas y salidas' },
-          { titulo: 'Consumibles',      valor: consList.length.toString(),  icono: FiTrendingUp,    color: 'purple', subtitulo: 'registrados' },
+          { titulo: 'Total Materiales',     valor: matList.length.toString(),  icono: FiPackage,      color: 'green',  subtitulo: 'en inventario' },
+          { titulo: 'Stock Bajo',           valor: stockBajo.toString(),        icono: FiAlertTriangle,color: 'red',    subtitulo: 'requieren atención' },
+          { titulo: 'Movimientos Hoy',      valor: movHoy.toString(),           icono: FiRepeat,       color: 'blue',   subtitulo: 'entradas y salidas' },
+          { titulo: 'Préstamos Pendientes', valor: pendientes.toString(),       icono: FiClipboard,    color: 'yellow', subtitulo: 'esperando aprobación' },
         ])
       } catch {
         // mantiene valores '—'
