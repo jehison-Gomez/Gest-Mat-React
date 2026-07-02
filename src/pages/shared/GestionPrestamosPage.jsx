@@ -42,6 +42,7 @@ export default function GestionPrestamosPage() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [pagina, setPagina] = useState(1)
   const [accionPendiente, setAccionPendiente] = useState(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
   const [detalle, setDetalle] = useState(null)
 
   useEffect(() => { cargar() }, [])
@@ -101,15 +102,17 @@ export default function GestionPrestamosPage() {
     const { tipo, prestamo } = accionPendiente
     try {
       if (tipo === 'aprobar') await prestamosService.aprobar(prestamo.id)
-      else if (tipo === 'rechazar') await prestamosService.rechazar(prestamo.id, 'Sin motivo')
+      else if (tipo === 'rechazar') await prestamosService.rechazar(prestamo.id, motivoRechazo.trim() || 'Sin motivo especificado')
       else if (tipo === 'entregar') await prestamosService.entregar(prestamo.id)
       else if (tipo === 'devolver') await prestamosService.devolver(prestamo.id)
-      toast.success(`Préstamo ${tipo === 'aprobar' ? 'aprobado' : tipo === 'rechazar' ? 'rechazado' : tipo === 'entregar' ? 'entregado' : 'devuelto'}`)
+      toast.success(`Préstamo ${tipo === 'aprobar' ? 'aprobado' : tipo === 'rechazar' ? 'rechazado' : tipo === 'entregar' ? 'entregado' : 'devuelto'} correctamente`)
       setAccionPendiente(null)
+      setMotivoRechazo('')
       cargar()
     } catch {
       toast.error('Error al procesar la acción')
       setAccionPendiente(null)
+      setMotivoRechazo('')
     }
   }
 
@@ -148,9 +151,9 @@ export default function GestionPrestamosPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
+                  <tr className="bg-[#39A900]">
                     {['Ficha', 'Solicitante', 'Material', 'Motivo', 'Fecha Inicio', 'Fecha Fin', 'Estado', 'Acciones'].map((col) => (
-                      <th key={col} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">{col}</th>
+                      <th key={col} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{col}</th>
                     ))}
                   </tr>
                 </thead>
@@ -222,8 +225,23 @@ export default function GestionPrestamosPage() {
           variante={accionPendiente.tipo === 'rechazar' ? 'peligro' : 'exito'}
           mensaje={`¿Confirmas ${accionPendiente.tipo === 'aprobar' ? 'aprobar' : accionPendiente.tipo === 'rechazar' ? 'rechazar' : accionPendiente.tipo === 'entregar' ? 'marcar como entregado' : 'registrar devolución de'} el préstamo de "${accionPendiente.prestamo.solicitante}"?`}
           onConfirmar={ejecutarAccion}
-          onCancelar={() => setAccionPendiente(null)}
-        />
+          onCancelar={() => { setAccionPendiente(null); setMotivoRechazo('') }}
+        >
+          {accionPendiente.tipo === 'rechazar' && (
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
+                Motivo del rechazo <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <textarea
+                value={motivoRechazo}
+                onChange={(e) => setMotivoRechazo(e.target.value)}
+                placeholder="Ej: El material solicitado no está disponible en este momento..."
+                rows={3}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 resize-none outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/15 transition-all"
+              />
+            </div>
+          )}
+        </ModalConfirmacion>
       )}
 
       {/* Modal detalle */}

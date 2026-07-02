@@ -77,6 +77,9 @@ export default function NuevoPrestamoPage() {
     if (!form.materialItemId) return setError('Selecciona un material.')
     if (!form.motivo) return setError('El motivo es obligatorio.')
     if (!form.fechaFin) return setError('La fecha fin es obligatoria.')
+    if (form.fechaFin < form.fechaInicio) return setError('La fecha de fin no puede ser anterior a la fecha de inicio.')
+    if (form.fechaDevolucionEsperada && form.fechaDevolucionEsperada < form.fechaInicio)
+      return setError('La fecha de devolución esperada no puede ser anterior a la fecha de inicio.')
     setError('')
     setGuardando(true)
     try {

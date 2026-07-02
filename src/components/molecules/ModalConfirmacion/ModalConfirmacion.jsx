@@ -25,6 +25,7 @@ export const ModalConfirmacion = ({
   variante = 'peligro',
   onConfirmar,
   onCancelar,
+  children,
 }) => {
   const cfg = VARIANTES[variante] ?? VARIANTES.peligro
   const Icono = cfg.icono
@@ -51,6 +52,9 @@ export const ModalConfirmacion = ({
               {mensaje && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{mensaje}</p>}
             </div>
           </div>
+
+          {/* Contenido extra (ej: campo de motivo) */}
+          {children && <div className="pt-1">{children}</div>}
 
           {/* Botones */}
           <div className="flex justify-end gap-3 pt-1">
