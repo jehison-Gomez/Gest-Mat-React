@@ -3,9 +3,9 @@ import { forwardRef } from 'react'
 export const InputTexto = forwardRef(
   ({ label, error, placeholder, type = 'text', ...props }, ref) => {
     return (
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-semibold text-gray-700">
             {label}
           </label>
         )}
@@ -13,14 +13,18 @@ export const InputTexto = forwardRef(
           ref={ref}
           type={type}
           placeholder={placeholder}
-          className={`w-full px-4 py-2 border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${
+          className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition-all duration-150 focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed placeholder:text-gray-400 ${
             error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
+              ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
+              : 'border-gray-200 hover:border-gray-300 focus:border-[#39A900] focus:ring-[#39A900]/15'
           }`}
           {...props}
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <span>✕</span> {error}
+          </p>
+        )}
       </div>
     )
   }
