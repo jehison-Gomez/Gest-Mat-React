@@ -1,15 +1,14 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import {
   FiPackage, FiClipboard, FiAlertCircle,
   FiClock, FiUsers, FiBarChart2,
-  FiGrid, FiPrinter,
+  FiGrid, FiPrinter, FiDownload,
 } from 'react-icons/fi'
 import { DashboardLayout } from '@/components/templates/DashboardLayout/DashboardLayout'
 import { imprimirReporte } from '@/utils/imprimirReporte'
+import { exportToExcel } from '@/utils/exportToExcel'
 import { useToast } from '@/hooks/useToast'
 import api from '@/services/api'
-
-const ESTADO_ACTIVO = ['APROBADO', 'ENTREGADO', 'EN_PROCESO', 'PENDIENTE']
 
 const REPORTES = [
   {
@@ -48,7 +47,7 @@ const REPORTES = [
   {
     id: 'prestamos_vencidos',
     titulo: 'Préstamos Vencidos',
-    descripcion: 'Préstamos activos que han superado su fecha límite de devolución.',
+    descripcion: 'Préstamos marcados como VENCIDO por superar su fecha límite de devolución.',
     Icon: FiClock,
     bg: 'bg-amber-50',
     iconBg: 'bg-amber-500',
@@ -100,166 +99,166 @@ const TIPO_MOV_LABEL = {
   BAJA: 'Baja',
 }
 
+const obtenerDatos = async (id) => {
+  let titulo, subtitulo, columnas, filas
+
+  if (id === 'inventario') {
+    const res = await api.get('/api/materiales')
+    const data = res.data?.data ?? res.data ?? []
+    titulo = 'Inventario General'
+    subtitulo = `Total de materiales registrados: ${data.length}`
+    columnas = [
+      { key: 'nombre',    label: 'Material' },
+      { key: 'tipo',      label: 'Tipo' },
+      { key: 'estado',    label: 'Estado' },
+      { key: 'categoria', label: 'Categoría' },
+      { key: 'unspsc',    label: 'Cód. UNSPSC' },
+    ]
+    filas = data.map(m => ({
+      nombre:    m.nombre ?? '—',
+      tipo:      m.tipo ?? '—',
+      estado:    m.estado ?? '—',
+      categoria: m.categoriaMaterial?.nombre ?? m.categoria?.nombre ?? '—',
+      unspsc:    m.codigoUnspsc ?? '—',
+    }))
+
+  } else if (id === 'prestamos') {
+    const res = await api.get('/api/prestamos')
+    const data = res.data?.data ?? res.data ?? []
+    titulo = 'Solicitudes de Préstamo'
+    subtitulo = `Total de registros: ${data.length}`
+    columnas = [
+      { key: 'solicitante',  label: 'Solicitante' },
+      { key: 'estado',       label: 'Estado' },
+      { key: 'fechaInicio',  label: 'Fecha Inicio' },
+      { key: 'fechaFin',     label: 'Fecha Fin' },
+      { key: 'devolucion',   label: 'Devolución Esperada' },
+    ]
+    const fmt = d => d ? new Date(d).toLocaleDateString('es-CO') : '—'
+    filas = data.map(p => ({
+      solicitante: p.solicitante?.nombre ?? '—',
+      estado:      p.estado ?? '—',
+      fechaInicio: fmt(p.fechaInicio),
+      fechaFin:    fmt(p.fechaFin),
+      devolucion:  fmt(p.fechaDevolucionEsperada),
+    }))
+
+  } else if (id === 'stock_critico') {
+    const res = await api.get('/api/materiales')
+    const inactivos = ['INACTIVO', 'BAJA', 'DADO_DE_BAJA', 'DETERIORADO']
+    const data = (res.data?.data ?? res.data ?? []).filter(
+      m => inactivos.includes(m.estado?.toUpperCase())
+    )
+    titulo = 'Materiales Inactivos'
+    subtitulo = `Materiales fuera de uso: ${data.length}`
+    columnas = [
+      { key: 'nombre',    label: 'Material' },
+      { key: 'tipo',      label: 'Tipo' },
+      { key: 'estado',    label: 'Estado' },
+      { key: 'categoria', label: 'Categoría' },
+    ]
+    filas = data.map(m => ({
+      nombre:    m.nombre ?? '—',
+      tipo:      m.tipo ?? '—',
+      estado:    m.estado ?? '—',
+      categoria: m.categoriaMaterial?.nombre ?? m.categoria?.nombre ?? '—',
+    }))
+
+  } else if (id === 'prestamos_vencidos') {
+    const res = await api.get('/api/prestamos')
+    const data = (res.data?.data ?? res.data ?? []).filter(
+      (p) => (p.estado ?? '').toUpperCase() === 'VENCIDO'
+    )
+    titulo = 'Préstamos Vencidos'
+    subtitulo = `Préstamos con estado VENCIDO: ${data.length}`
+    columnas = [
+      { key: 'solicitante', label: 'Solicitante' },
+      { key: 'estado',      label: 'Estado' },
+      { key: 'fechaFin',    label: 'Fecha Fin' },
+      { key: 'devolucion',  label: 'Devolución Esperada' },
+    ]
+    const fmt = d => d ? new Date(d).toLocaleDateString('es-CO') : '—'
+    filas = data.map(p => ({
+      solicitante: p.solicitante?.nombre ?? '—',
+      estado:      p.estado ?? '—',
+      fechaFin:    fmt(p.fechaFin),
+      devolucion:  fmt(p.fechaDevolucionEsperada),
+    }))
+
+  } else if (id === 'usuarios') {
+    const res = await api.get('/api/usuarios')
+    const data = res.data?.data ?? res.data ?? []
+    titulo = 'Usuarios del Sistema'
+    subtitulo = `Total de usuarios registrados: ${data.length}`
+    columnas = [
+      { key: 'nombre',    label: 'Nombre' },
+      { key: 'correo',    label: 'Correo' },
+      { key: 'rol',       label: 'Rol' },
+      { key: 'estado',    label: 'Estado' },
+      { key: 'documento', label: 'N° Documento' },
+    ]
+    filas = data.map(u => ({
+      nombre:    u.nombre ?? '—',
+      correo:    u.correo ?? '—',
+      rol:       u.role?.nombre ?? u.rol ?? '—',
+      estado:    u.estado ?? '—',
+      documento: u.numeroDocumento ?? '—',
+    }))
+
+  } else if (id === 'fichas') {
+    const res = await api.get('/api/fichas')
+    const data = res.data?.data ?? res.data ?? []
+    titulo = 'Fichas de Formación'
+    subtitulo = `Total de fichas registradas: ${data.length}`
+    columnas = [
+      { key: 'codigo',   label: 'Código Ficha' },
+      { key: 'programa', label: 'Programa' },
+      { key: 'inicio',   label: 'Fecha Inicio' },
+      { key: 'fin',      label: 'Fecha Fin' },
+      { key: 'estado',   label: 'Estado' },
+    ]
+    const fmt = d => d ? new Date(d).toLocaleDateString('es-CO') : '—'
+    filas = data.map(f => ({
+      codigo:   f.codigoFicha ?? '—',
+      programa: f.programa?.nombre ?? '—',
+      inicio:   fmt(f.fechaInicio),
+      fin:      fmt(f.fechaFin),
+      estado:   f.estado ?? '—',
+    }))
+
+  } else if (id === 'movimientos') {
+    const res = await api.get('/api/movimientos')
+    const data = res.data?.data ?? res.data ?? []
+    titulo = 'Movimientos (Kardex)'
+    subtitulo = `Total de movimientos registrados: ${data.length}`
+    columnas = [
+      { key: 'tipo',         label: 'Tipo' },
+      { key: 'cantidad',     label: 'Cantidad' },
+      { key: 'saldoAntes',   label: 'Saldo Anterior' },
+      { key: 'saldoDespues', label: 'Saldo Posterior' },
+      { key: 'fecha',        label: 'Fecha' },
+    ]
+    filas = data.map(m => ({
+      tipo:         TIPO_MOV_LABEL[m.tipo] ?? m.tipo ?? '—',
+      cantidad:     m.cantidad ?? '—',
+      saldoAntes:   m.saldoAnterior ?? '—',
+      saldoDespues: m.saldoActual ?? '—',
+      fecha:        m.creadoEn ? new Date(m.creadoEn).toLocaleDateString('es-CO') : '—',
+    }))
+  }
+
+  return { titulo, subtitulo, columnas, filas }
+}
+
 export default function ReportesPage() {
   const toast = useToast()
   const [cargando, setCargando] = useState({})
+  const [cargandoXls, setCargandoXls] = useState({})
 
   const generar = async (id) => {
     setCargando(prev => ({ ...prev, [id]: true }))
     try {
-      let titulo, subtitulo, columnas, filas
-
-      if (id === 'inventario') {
-        const res = await api.get('/api/materiales')
-        const data = res.data?.data ?? res.data ?? []
-        titulo = 'Inventario General'
-        subtitulo = `Total de materiales registrados: ${data.length}`
-        columnas = [
-          { key: 'nombre',    label: 'Material' },
-          { key: 'tipo',      label: 'Tipo' },
-          { key: 'estado',    label: 'Estado' },
-          { key: 'categoria', label: 'Categoría' },
-          { key: 'unspsc',    label: 'Cód. UNSPSC' },
-        ]
-        filas = data.map(m => ({
-          nombre:    m.nombre ?? '—',
-          tipo:      m.tipo ?? '—',
-          estado:    m.estado ?? '—',
-          categoria: m.categoriaMaterial?.nombre ?? m.categoria?.nombre ?? '—',
-          unspsc:    m.codigoUnspsc ?? '—',
-        }))
-
-      } else if (id === 'prestamos') {
-        const res = await api.get('/api/prestamos')
-        const data = res.data?.data ?? res.data ?? []
-        titulo = 'Solicitudes de Préstamo'
-        subtitulo = `Total de registros: ${data.length}`
-        columnas = [
-          { key: 'solicitante',  label: 'Solicitante' },
-          { key: 'estado',       label: 'Estado' },
-          { key: 'fechaInicio',  label: 'Fecha Inicio' },
-          { key: 'fechaFin',     label: 'Fecha Fin' },
-          { key: 'devolucion',   label: 'Devolución Esperada' },
-        ]
-        const fmt = d => d ? new Date(d).toLocaleDateString('es-CO') : '—'
-        filas = data.map(p => ({
-          solicitante: p.solicitante?.nombre ?? '—',
-          estado:      p.estado ?? '—',
-          fechaInicio: fmt(p.fechaInicio),
-          fechaFin:    fmt(p.fechaFin),
-          devolucion:  fmt(p.fechaDevolucionEsperada),
-        }))
-
-      } else if (id === 'stock_critico') {
-        const res = await api.get('/api/materiales')
-        const inactivos = ['INACTIVO', 'BAJA', 'DADO_DE_BAJA', 'DETERIORADO']
-        const data = (res.data?.data ?? res.data ?? []).filter(
-          m => inactivos.includes(m.estado?.toUpperCase())
-        )
-        titulo = 'Materiales Inactivos'
-        subtitulo = `Materiales fuera de uso: ${data.length}`
-        columnas = [
-          { key: 'nombre',    label: 'Material' },
-          { key: 'tipo',      label: 'Tipo' },
-          { key: 'estado',    label: 'Estado' },
-          { key: 'categoria', label: 'Categoría' },
-        ]
-        filas = data.map(m => ({
-          nombre:    m.nombre ?? '—',
-          tipo:      m.tipo ?? '—',
-          estado:    m.estado ?? '—',
-          categoria: m.categoriaMaterial?.nombre ?? m.categoria?.nombre ?? '—',
-        }))
-
-      } else if (id === 'prestamos_vencidos') {
-        const res = await api.get('/api/prestamos')
-        const hoy = new Date()
-        const data = (res.data?.data ?? res.data ?? []).filter(p => {
-          if (!p.fechaDevolucionEsperada) return false
-          if (!ESTADO_ACTIVO.includes(p.estado)) return false
-          return new Date(p.fechaDevolucionEsperada) < hoy
-        })
-        titulo = 'Préstamos Vencidos'
-        subtitulo = `Préstamos con fecha de devolución vencida: ${data.length}`
-        columnas = [
-          { key: 'solicitante', label: 'Solicitante' },
-          { key: 'estado',      label: 'Estado' },
-          { key: 'devolucion',  label: 'Vencimiento' },
-          { key: 'dias',        label: 'Días Vencido' },
-        ]
-        filas = data.map(p => {
-          const venc = new Date(p.fechaDevolucionEsperada)
-          const dias = Math.floor((hoy - venc) / 86_400_000)
-          return {
-            solicitante: p.solicitante?.nombre ?? '—',
-            estado:      p.estado ?? '—',
-            devolucion:  venc.toLocaleDateString('es-CO'),
-            dias:        `${dias} día(s)`,
-          }
-        })
-
-      } else if (id === 'usuarios') {
-        const res = await api.get('/api/usuarios')
-        const data = res.data?.data ?? res.data ?? []
-        titulo = 'Usuarios del Sistema'
-        subtitulo = `Total de usuarios registrados: ${data.length}`
-        columnas = [
-          { key: 'nombre',   label: 'Nombre' },
-          { key: 'correo',   label: 'Correo' },
-          { key: 'rol',      label: 'Rol' },
-          { key: 'estado',   label: 'Estado' },
-          { key: 'documento', label: 'N° Documento' },
-        ]
-        filas = data.map(u => ({
-          nombre:    u.nombre ?? '—',
-          correo:    u.correo ?? '—',
-          rol:       u.role?.nombre ?? u.rol ?? '—',
-          estado:    u.estado ?? '—',
-          documento: u.numeroDocumento ?? '—',
-        }))
-
-      } else if (id === 'fichas') {
-        const res = await api.get('/api/fichas')
-        const data = res.data?.data ?? res.data ?? []
-        titulo = 'Fichas de Formación'
-        subtitulo = `Total de fichas registradas: ${data.length}`
-        columnas = [
-          { key: 'codigo',   label: 'Código Ficha' },
-          { key: 'programa', label: 'Programa' },
-          { key: 'inicio',   label: 'Fecha Inicio' },
-          { key: 'fin',      label: 'Fecha Fin' },
-          { key: 'estado',   label: 'Estado' },
-        ]
-        const fmt = d => d ? new Date(d).toLocaleDateString('es-CO') : '—'
-        filas = data.map(f => ({
-          codigo:   f.codigoFicha ?? '—',
-          programa: f.programa?.nombre ?? '—',
-          inicio:   fmt(f.fechaInicio),
-          fin:      fmt(f.fechaFin),
-          estado:   f.estado ?? '—',
-        }))
-
-      } else if (id === 'movimientos') {
-        const res = await api.get('/api/movimientos')
-        const data = res.data?.data ?? res.data ?? []
-        titulo = 'Movimientos (Kardex)'
-        subtitulo = `Total de movimientos registrados: ${data.length}`
-        columnas = [
-          { key: 'tipo',         label: 'Tipo' },
-          { key: 'cantidad',     label: 'Cantidad' },
-          { key: 'saldoAntes',   label: 'Saldo Anterior' },
-          { key: 'saldoDespues', label: 'Saldo Posterior' },
-          { key: 'fecha',        label: 'Fecha' },
-        ]
-        filas = data.map(m => ({
-          tipo:         TIPO_MOV_LABEL[m.tipo] ?? m.tipo ?? '—',
-          cantidad:     m.cantidad ?? '—',
-          saldoAntes:   m.saldoAnterior ?? '—',
-          saldoDespues: m.saldoActual ?? '—',
-          fecha:        m.creadoEn ? new Date(m.creadoEn).toLocaleDateString('es-CO') : '—',
-        }))
-      }
-
+      const { titulo, subtitulo, columnas, filas } = await obtenerDatos(id)
       imprimirReporte({ titulo, subtitulo, columnas, filas })
       toast.success(`Reporte "${titulo}" listo para imprimir`)
     } catch {
@@ -269,13 +268,30 @@ export default function ReportesPage() {
     }
   }
 
+  const exportar = async (id, titulo) => {
+    setCargandoXls(prev => ({ ...prev, [id]: true }))
+    try {
+      const { filas, columnas } = await obtenerDatos(id)
+      const fileName = `${id}-${new Date().toISOString().split('T')[0]}`
+      const rows = filas.map((fila) =>
+        Object.fromEntries(columnas.map((col) => [col.label, fila[col.key] ?? '—']))
+      )
+      exportToExcel(rows, fileName, titulo)
+      toast.success('Archivo Excel generado')
+    } catch {
+      toast.error('Error al exportar a Excel')
+    } finally {
+      setCargandoXls(prev => ({ ...prev, [id]: false }))
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 page-title">Reportes</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Genera y descarga reportes en PDF con información actualizada del sistema.
+            Genera reportes en PDF o Excel con información actualizada del sistema.
           </p>
         </div>
 
@@ -294,14 +310,24 @@ export default function ReportesPage() {
                 <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{descripcion}</p>
               </div>
 
-              <button
-                onClick={() => generar(id)}
-                disabled={cargando[id]}
-                className={`flex items-center gap-2 text-sm font-semibold ${textColor} ${hoverText} transition-colors disabled:opacity-50 w-fit`}
-              >
-                <FiPrinter size={15} />
-                {cargando[id] ? 'Generando...' : 'Generar PDF'}
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => generar(id)}
+                  disabled={cargando[id]}
+                  className={`flex items-center gap-2 text-sm font-semibold ${textColor} ${hoverText} transition-colors disabled:opacity-50`}
+                >
+                  <FiPrinter size={15} />
+                  {cargando[id] ? 'Generando...' : 'PDF'}
+                </button>
+                <button
+                  onClick={() => exportar(id, titulo)}
+                  disabled={cargandoXls[id]}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50"
+                >
+                  <FiDownload size={15} />
+                  {cargandoXls[id] ? 'Exportando...' : 'Excel'}
+                </button>
+              </div>
             </div>
           ))}
         </div>

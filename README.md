@@ -1,16 +1,86 @@
-# React + Vite
+# Sistema de Gestión de Materiales SENA
+## Frontend — Instrucciones para ejecutar
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## Requisitos previos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Asegurate de tener instalado en tu computador:
 
-## React Compiler
+| Herramienta | Como verificar |
+|---|---|
+| Node.js (version 18 o superior) | `node --version` |
+| npm | `npm --version` |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Importante
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+El frontend necesita que el **backend este corriendo** antes de abrirlo.
+Asegurate de haber iniciado el backend en `http://localhost:3000` primero.
+
+---
+
+## PASO 1 — Instalar dependencias
+
+Solo la primera vez que ejecutes el proyecto:
+
+```bash
+npm install
+```
+
+---
+
+## PASO 2 — Iniciar el servidor de desarrollo
+
+```bash
+npm run dev
+```
+
+Cuando el frontend este listo veras este mensaje en consola:
+
+```
+  Local:   http://localhost:5173/
+```
+
+Abre el navegador en: **http://localhost:5173**
+
+---
+
+## Credenciales de acceso
+
+```
+Correo:     yamboroadmin@gmail.com
+Contraseña: Admin123
+```
+
+---
+
+## Comandos disponibles
+
+| Comando | Descripcion |
+|---|---|
+| `npm run dev` | Inicia en modo desarrollo con recarga automatica |
+| `npm run build` | Compila el proyecto para produccion |
+| `npm run preview` | Previsualiza la version compilada |
+
+---
+
+## Orden correcto para iniciar todo el sistema
+
+```
+1. docker-compose up -d          (base de datos — desde la carpeta del backend)
+2. npm run start:dev             (backend — desde la carpeta del backend)
+3. npm run dev                   (frontend — desde esta carpeta)
+4. Abrir http://localhost:5173   (en el navegador)
+```
+
+---
+
+## Solucion de problemas
+
+**El sistema muestra pantalla en blanco o no carga datos:**
+Solucion: verifica que el backend este corriendo en `http://localhost:3000`
+
+**Error al instalar dependencias:**
+Solucion: elimina la carpeta `node_modules` y el archivo `package-lock.json`, luego ejecuta `npm install` nuevamente.

@@ -3,6 +3,7 @@ import { FiLogOut } from 'react-icons/fi'
 import { NavItem } from '@/components/molecules/NavItem/NavItem'
 import { Avatar } from '@/components/atoms/Avatar/Avatar'
 import { useAuth } from '@/hooks/useAuth'
+import { useBodega } from '@/hooks/useBodega'
 import { MENU_ITEMS } from '@/router/menuConfig'
 import { authService } from '@/services/authService'
 import gestmatLogo from '@/assets/gestmat_logo_transparente.png'
@@ -16,7 +17,7 @@ const LABEL_ROL = {
   aprendiz:             'Aprendiz',
 }
 
-const itemVisible = (item, rol, hasPermiso) => {
+const itemVisible = (item, rol, hasPermiso, esBodeguero) => {
   if (item.soloRoles && !item.soloRoles.includes(rol)) return false
   if (item.permiso) {
     const [m, a] = item.permiso.split(':')
@@ -26,22 +27,24 @@ const itemVisible = (item, rol, hasPermiso) => {
     const [m, a] = item.excluirConPermiso.split(':')
     if (hasPermiso(m, a)) return false
   }
+  if (item.requiereBodega && !esBodeguero) return false
   return true
 }
 
 export const Sidebar = ({ collapsed }) => {
   const { user, rol, hasPermiso } = useAuth()
+  const { esBodeguero } = useBodega()
   const navigate = useNavigate()
 
   const menuFiltrado = MENU_ITEMS
     .map(item => {
       if (!item.subItems) return item
-      const subs = item.subItems.filter(s => itemVisible(s, rol, hasPermiso))
+      const subs = item.subItems.filter(s => itemVisible(s, rol, hasPermiso, esBodeguero))
       return { ...item, subItems: subs }
     })
     .filter(item => {
       if (item.subItems !== undefined) return item.subItems.length > 0
-      return itemVisible(item, rol, hasPermiso)
+      return itemVisible(item, rol, hasPermiso, esBodeguero)
     })
 
   const handleLogout = async () => {

@@ -30,6 +30,7 @@ import KardexPage          from '@/pages/admin/KardexPage'
 import GestionPrestamosPage from '@/pages/shared/GestionPrestamosPage'
 import NuevoPrestamoPage    from '@/pages/shared/NuevoPrestamoPage'
 import MiPerfilPage         from '@/pages/shared/MiPerfilPage'
+import MiBodegaPage         from '@/pages/shared/MiBodegaPage'
 
 // Instructor Encargado
 import GestionAreaPage from '@/pages/instructor_encargado/GestionAreaPage'
@@ -165,6 +166,11 @@ export const AppRouter = () => {
         {/* Aprendiz y Vocero */}
         <Route element={<PrivateRoute allowedRoles={[ROLES.APRENDIZ, ROLES.VOCERO]} />}>
           <Route path="mis-asignaciones" element={<MisAsignacionesPage />} />
+        </Route>
+
+        {/* Mi Bodega — cualquier rol que sea encargado */}
+        <Route element={<PrivateRoute allowedRoles={TODOS} />}>
+          <Route path="mi-bodega" element={<MiBodegaPage />} />
         </Route>
 
         {/* Todos los roles */}

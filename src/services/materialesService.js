@@ -12,6 +12,7 @@ export const materialesService = {
 
   getAllItems: async () => (await api.get('/api/material_item')).data,
   getAllConsumibles: async () => (await api.get('/api/material_consumible')).data,
+  getBajoStock: async () => (await api.get('/api/material_consumible/bajo-stock')).data,
   actualizarConsumible: async (id, data) => (await api.patch(`/api/material_consumible/${id}`, data)).data,
   actualizarItem: async (id, data) => (await api.patch(`/api/material_item/${id}`, data)).data,
 }

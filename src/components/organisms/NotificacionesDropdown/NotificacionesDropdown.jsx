@@ -2,20 +2,23 @@
 import { useNavigate } from 'react-router-dom'
 import {
   FiBell, FiAlertTriangle, FiClock, FiPackage,
-  FiCheckCircle, FiInbox, FiX, FiCheck,
+  FiCheckCircle, FiInbox, FiX, FiCheck, FiTruck,
 } from 'react-icons/fi'
 import { useNotificaciones } from '@/hooks/useNotificaciones'
 
 // Tipos del backend
 const ICONOS_TIPO = {
-  prestamo_nuevo:      { icono: FiInbox,         color: 'text-blue-600 bg-blue-50',   badge: 'bg-blue-500'   },
-  prestamo_aprobado:   { icono: FiCheckCircle,    color: 'text-green-600 bg-green-50', badge: 'bg-green-500'  },
-  prestamo_rechazado:  { icono: FiAlertTriangle,  color: 'text-red-600 bg-red-50',     badge: 'bg-red-500'    },
-  // tipos frontned
-  pendiente:           { icono: FiInbox,          color: 'text-blue-600 bg-blue-50',   badge: 'bg-blue-500'   },
-  vencido:             { icono: FiAlertTriangle,  color: 'text-red-600 bg-red-50',     badge: 'bg-red-500'    },
-  porvencer:           { icono: FiClock,          color: 'text-amber-600 bg-amber-50', badge: 'bg-amber-500'  },
-  stock:               { icono: FiPackage,        color: 'text-orange-600 bg-orange-50', badge: 'bg-orange-500' },
+  // Tipos del backend
+  prestamo_nuevo:      { icono: FiInbox,         color: 'text-blue-600 bg-blue-50',    badge: 'bg-blue-500'    },
+  prestamo_aprobado:   { icono: FiCheckCircle,   color: 'text-green-600 bg-green-50',  badge: 'bg-green-500'   },
+  prestamo_rechazado:  { icono: FiAlertTriangle, color: 'text-red-600 bg-red-50',      badge: 'bg-red-500'     },
+  prestamo_entregado:  { icono: FiTruck,         color: 'text-blue-600 bg-blue-50',    badge: 'bg-blue-500'    },
+  prestamo_devuelto:   { icono: FiCheckCircle,   color: 'text-purple-600 bg-purple-50',badge: 'bg-purple-500'  },
+  // Tipos frontend
+  pendiente:           { icono: FiInbox,         color: 'text-blue-600 bg-blue-50',    badge: 'bg-blue-500'    },
+  vencido:             { icono: FiAlertTriangle, color: 'text-red-600 bg-red-50',      badge: 'bg-red-500'     },
+  porvencer:           { icono: FiClock,         color: 'text-amber-600 bg-amber-50',  badge: 'bg-amber-500'   },
+  stock:               { icono: FiPackage,       color: 'text-orange-600 bg-orange-50',badge: 'bg-orange-500'  },
 }
 
 const tiempoRelativo = (fecha) => {
@@ -155,6 +158,8 @@ export const NotificacionesDropdown = () => {
                 'Nueva solicitud': ['bg-blue-500',   n => n.tipo === 'prestamo_nuevo'],
                 'Aprobado':        ['bg-green-500',  n => n.tipo === 'prestamo_aprobado'],
                 'Rechazado':       ['bg-red-500',    n => n.tipo === 'prestamo_rechazado'],
+                'Entregado':       ['bg-blue-400',   n => n.tipo === 'prestamo_entregado'],
+                'Devuelto':        ['bg-purple-500', n => n.tipo === 'prestamo_devuelto'],
                 'Stock bajo':      ['bg-orange-500', n => n.tipo === 'stock'],
                 'Por vencer':      ['bg-amber-500',  n => n.tipo === 'porvencer'],
                 'Vencido':         ['bg-red-600',    n => n.tipo === 'vencido'],

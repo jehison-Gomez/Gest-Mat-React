@@ -51,8 +51,9 @@ export default function NuevaAreaPage() {
       })
       toast.success('Área creada exitosamente')
       navigate('/app/areas')
-    } catch {
-      toast.error('Error al crear el área')
+    } catch (e) {
+      const msg = e?.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg.join(' | ') : msg || 'Error al crear el área')
     } finally {
       setCargando(false)
     }

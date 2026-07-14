@@ -1,6 +1,6 @@
 import {
   FiGrid, FiPackage, FiRepeat, FiSettings,
-  FiUsers, FiFileText, FiMapPin, FiBookOpen, FiList, FiTrendingUp, FiUser,
+  FiUsers, FiFileText, FiMapPin, FiBookOpen, FiList, FiTrendingUp, FiUser, FiArchive,
 } from 'react-icons/fi'
 
 // Campos de cada item:
@@ -63,6 +63,7 @@ export const MENU_ITEMS = [
     soloRoles: ['vocero'],
   },
   // Items exclusivos por rol
+  { icono: FiArchive,  label: 'Mi Bodega',         to: '/app/mi-bodega',        requiereBodega: true },
   { icono: FiMapPin,   label: 'Mi Área',          to: '/app/gestion-area',     soloRoles: ['instructor_encargado'] },
   { icono: FiBookOpen, label: 'Mis Fichas',         to: '/app/mis-fichas',       soloRoles: ['instructor'] },
   { icono: FiList,     label: 'Mis Asignaciones',  to: '/app/mis-asignaciones', soloRoles: ['vocero', 'aprendiz'] },

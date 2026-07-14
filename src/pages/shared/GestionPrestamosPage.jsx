@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardLayout } from '@/components/templates/DashboardLayout/DashboardLayout'
 import { SearchBar } from '@/components/molecules/SearchBar/SearchBar'
@@ -10,7 +10,8 @@ import { prestamosService } from '@/services/prestamosService'
 import { materialesService } from '@/services/materialesService'
 import api from '@/services/api'
 import { useToast } from '@/hooks/useToast'
-import { FiCheck, FiX, FiTruck, FiRotateCcw, FiEye, FiPlus } from 'react-icons/fi'
+import { exportToExcel } from '@/utils/exportToExcel'
+import { FiCheck, FiX, FiTruck, FiRotateCcw, FiEye, FiPlus, FiDownload } from 'react-icons/fi'
 
 const POR_PAGINA = 10
 
@@ -19,9 +20,8 @@ const badgeEstado = (estado) => {
   if (e === 'pendiente') return 'warning'
   if (e === 'aprobado') return 'info'
   if (e === 'entregado' || e === 'activo') return 'success'
-  if (e === 'devuelto') return 'default'
-  if (e === 'rechazado') return 'danger'
-  if (e === 'vencido') return 'danger'
+  if (e === 'devuelto' || e === 'devolucion_parcial') return 'default'
+  if (e === 'rechazado' || e === 'vencido') return 'danger'
   return 'default'
 }
 
@@ -44,8 +44,41 @@ export default function GestionPrestamosPage() {
   const [accionPendiente, setAccionPendiente] = useState(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [detalle, setDetalle] = useState(null)
+  const [historial, setHistorial] = useState([])
+  const [historialCargando, setHistorialCargando] = useState(false)
+  // Aprobación parcial de consumibles
+  const [consumiblesPrestamo, setConsumiblesPrestamo] = useState([])
+  const [cantidadesAprobadas, setCantidadesAprobadas] = useState({})
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    prestamosService.revisarVencidos().catch(() => {})
+    cargar()
+  }, [])
+
+  // Cargar consumibles cuando se abre el modal de aprobación
+  useEffect(() => {
+    if (accionPendiente?.tipo === 'aprobar') {
+      const prestamoId = accionPendiente.prestamo.id
+      api.get(`/api/prestamo-consumible/prestamo/${prestamoId}`)
+        .then((r) => {
+          const lista = Array.isArray(r.data) ? r.data : (r.data?.data ?? [])
+          setConsumiblesPrestamo(lista)
+          // Inicializar con cantidad solicitada
+          const init = {}
+          lista.forEach((c) => {
+            init[c.id] = c.cantidadAprobada ?? c.cantidadSolicitada ?? c.cantidad ?? 0
+          })
+          setCantidadesAprobadas(init)
+        })
+        .catch(() => {
+          setConsumiblesPrestamo([])
+          setCantidadesAprobadas({})
+        })
+    } else {
+      setConsumiblesPrestamo([])
+      setCantidadesAprobadas({})
+    }
+  }, [accionPendiente])
 
   const cargar = async () => {
     try {
@@ -101,11 +134,28 @@ export default function GestionPrestamosPage() {
     if (!accionPendiente) return
     const { tipo, prestamo } = accionPendiente
     try {
-      if (tipo === 'aprobar') await prestamosService.aprobar(prestamo.id)
-      else if (tipo === 'rechazar') await prestamosService.rechazar(prestamo.id, motivoRechazo.trim() || 'Sin motivo especificado')
-      else if (tipo === 'entregar') await prestamosService.entregar(prestamo.id)
-      else if (tipo === 'devolver') await prestamosService.devolver(prestamo.id)
-      toast.success(`Préstamo ${tipo === 'aprobar' ? 'aprobado' : tipo === 'rechazar' ? 'rechazado' : tipo === 'entregar' ? 'entregado' : 'devuelto'} correctamente`)
+      if (tipo === 'aprobar') {
+        const payload = {}
+        if (consumiblesPrestamo.length > 0) {
+          payload.cantidadesAprobadas = consumiblesPrestamo.map((c) => ({
+            prestamoConsumibleId: c.id,
+            cantidadAprobada: Number(cantidadesAprobadas[c.id] ?? c.cantidadSolicitada ?? c.cantidad ?? 0),
+          }))
+        }
+        await prestamosService.aprobar(prestamo.id, payload)
+      } else if (tipo === 'rechazar') {
+        await prestamosService.rechazar(prestamo.id, motivoRechazo.trim() || 'Sin motivo especificado')
+      } else if (tipo === 'entregar') {
+        await prestamosService.entregar(prestamo.id)
+      } else if (tipo === 'devolver') {
+        await prestamosService.devolver(prestamo.id)
+      }
+      toast.success(
+        tipo === 'aprobar' ? 'Préstamo aprobado correctamente' :
+        tipo === 'rechazar' ? 'Préstamo rechazado' :
+        tipo === 'entregar' ? 'Entrega registrada' :
+        'Devolución registrada'
+      )
       setAccionPendiente(null)
       setMotivoRechazo('')
       cargar()
@@ -114,6 +164,33 @@ export default function GestionPrestamosPage() {
       setAccionPendiente(null)
       setMotivoRechazo('')
     }
+  }
+
+  const abrirDetalle = async (p) => {
+    setDetalle(p)
+    setHistorial([])
+    setHistorialCargando(true)
+    try {
+      const data = await prestamosService.getHistorial(p.id)
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch {
+      setHistorial([])
+    } finally {
+      setHistorialCargando(false)
+    }
+  }
+
+  const exportar = () => {
+    const filas = filtrados.map((p) => ({
+      Ficha:           p.ficha,
+      Solicitante:     p.solicitante,
+      Materiales:      p.materiales.join(', ') || '—',
+      Motivo:          p.motivo,
+      'Fecha Inicio':  p.fechaInicio,
+      'Fecha Fin':     p.fechaFin,
+      Estado:          p.estado,
+    }))
+    exportToExcel(filas, `prestamos-${new Date().toISOString().split('T')[0]}`, 'Préstamos')
   }
 
   return (
@@ -125,9 +202,18 @@ export default function GestionPrestamosPage() {
               <h1 className="text-2xl font-bold text-gray-900 page-title">Gestión de Préstamos</h1>
               <p className="text-sm text-gray-500 mt-1">Revisa, aprueba y gestiona los préstamos de materiales.</p>
             </div>
-            <Boton variante="primario" className="flex items-center gap-2" onClick={() => navigate('/app/prestamos/nuevo')}>
-              <FiPlus size={16} /> Nuevo Préstamo
-            </Boton>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportar}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                title="Exportar a Excel"
+              >
+                <FiDownload size={14} /> Exportar
+              </button>
+              <Boton variante="primario" className="flex items-center gap-2" onClick={() => navigate('/app/prestamos/nuevo')}>
+                <FiPlus size={16} /> Nuevo Préstamo
+              </Boton>
+            </div>
           </div>
 
           {/* Toolbar */}
@@ -174,7 +260,7 @@ export default function GestionPrestamosPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => setDetalle(p)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-md" title="Ver"><FiEye size={14} /></button>
+                            <button onClick={() => abrirDetalle(p)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-md" title="Ver"><FiEye size={14} /></button>
                             {p.estado.toLowerCase() === 'pendiente' && (
                               <>
                                 <button onClick={() => setAccionPendiente({ tipo: 'aprobar', prestamo: p })} className="p-1.5 text-green-600 hover:bg-green-50 rounded-md" title="Aprobar"><FiCheck size={14} /></button>
@@ -241,6 +327,47 @@ export default function GestionPrestamosPage() {
               />
             </div>
           )}
+
+          {accionPendiente.tipo === 'aprobar' && consumiblesPrestamo.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-700">Cantidades aprobadas por consumible:</p>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600">Material</th>
+                      <th className="px-3 py-2 text-center font-semibold text-gray-600">Solicitado</th>
+                      <th className="px-3 py-2 text-center font-semibold text-gray-600">Aprobar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {consumiblesPrestamo.map((c) => (
+                      <tr key={c.id}>
+                        <td className="px-3 py-2 text-gray-700">
+                          {c.materialConsumible?.materiale?.nombre ?? c.nombre ?? '—'}
+                        </td>
+                        <td className="px-3 py-2 text-center text-gray-500">
+                          {c.cantidadSolicitada ?? c.cantidad ?? 0}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={c.cantidadSolicitada ?? c.cantidad ?? 9999}
+                            value={cantidadesAprobadas[c.id] ?? ''}
+                            onChange={(e) =>
+                              setCantidadesAprobadas((prev) => ({ ...prev, [c.id]: e.target.value }))
+                            }
+                            className="w-20 mx-auto block text-center border border-gray-300 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </ModalConfirmacion>
       )}
 
@@ -248,7 +375,7 @@ export default function GestionPrestamosPage() {
       {detalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDetalle(null)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 space-y-4">
+          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900">Detalle del Préstamo</h3>
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Ficha:</span> {detalle.ficha}</p>
@@ -259,6 +386,38 @@ export default function GestionPrestamosPage() {
               <p><span className="font-medium">Fecha fin:</span> {detalle.fechaFin}</p>
               <div className="flex items-center gap-2"><span className="font-medium">Estado:</span><Badge variante={badgeEstado(detalle.estado)}>{detalle.estado}</Badge></div>
             </div>
+
+            {/* Historial de estados */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Historial de estados</h4>
+              {historialCargando ? (
+                <p className="text-xs text-gray-400">Cargando historial...</p>
+              ) : historial.length === 0 ? (
+                <p className="text-xs text-gray-400">Sin movimientos registrados aún.</p>
+              ) : (
+                <ol className="relative border-l border-gray-200 space-y-4 ml-2">
+                  {historial.map((h) => (
+                    <li key={h.id} className="ml-4">
+                      <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-white bg-[#39A900]" />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {h.estadoAnterior && (
+                          <Badge variante={badgeEstado(h.estadoAnterior)}>{h.estadoAnterior}</Badge>
+                        )}
+                        {h.estadoAnterior && <span className="text-gray-400 text-xs">→</span>}
+                        <Badge variante={badgeEstado(h.estadoNuevo)}>{h.estadoNuevo}</Badge>
+                      </div>
+                      <time className="text-xs text-gray-400 mt-0.5 block">
+                        {new Date(h.creadoEn).toLocaleString('es-CO')}
+                      </time>
+                      {h.observacion && (
+                        <p className="text-xs text-gray-500 mt-0.5 italic">"{h.observacion}"</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+
             <div className="flex justify-end pt-2">
               <Boton variante="secundario" onClick={() => setDetalle(null)}>Cerrar</Boton>
             </div>

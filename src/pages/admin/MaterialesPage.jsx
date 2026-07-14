@@ -12,8 +12,6 @@ import { materialesService } from '@/services/materialesService'
 import { useToast } from '@/hooks/useToast'
 import { useAuth } from '@/hooks/useAuth'
 
-const POR_PAGINA = 10
-
 const calcularEstado = (stockActual, stockMinimo) => {
   if (stockActual === 0) return 'SIN STOCK'
   if (stockActual <= stockMinimo) return 'STOCK BAJO'
@@ -27,7 +25,6 @@ export default function MaterialesPage() {
   const puedeCrear = !isAprendiz && !isVocero && hasPermiso('materiales', 'crear')
   const [materiales, setMateriales] = useState([])
   const [busqueda, setBusqueda] = useState('')
-  const [pagina, setPagina] = useState(1)
   const [confirmacion, setConfirmacion] = useState(false)
   const [materialAEliminar, setMaterialAEliminar] = useState(null)
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -106,14 +103,8 @@ export default function MaterialesPage() {
     )
   }, [materiales, busqueda])
 
-  const paginados = useMemo(() => {
-    const inicio = (pagina - 1) * POR_PAGINA
-    return filtrados.slice(inicio, inicio + POR_PAGINA)
-  }, [filtrados, pagina])
-
   const handleBusqueda = (valor) => {
     setBusqueda(valor)
-    setPagina(1)
   }
 
   const handleEliminar = (material) => {
@@ -170,12 +161,7 @@ export default function MaterialesPage() {
 
         {/* Tabla */}
         <TablaMateriales
-          materiales={paginados}
-          totalRegistros={filtrados.length}
-          paginaActual={pagina}
-          porPagina={POR_PAGINA}
-          onAnterior={() => setPagina((p) => p - 1)}
-          onSiguiente={() => setPagina((p) => p + 1)}
+          materiales={filtrados}
           onEditar={(m) => navigate(`/app/materiales/editar/${m.id}`)}
           onHistorial={(m) => toast.info(`Historial: ${m.nombre}`)}
           onEliminar={handleEliminar}

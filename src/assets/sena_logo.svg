@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 230" fill="#39A900">
+  <!-- Cabeza -->
+  <circle cx="100" cy="28" r="24" />
+
+  <!-- Barra superior (hombros / línea superior) -->
+  <rect x="8" y="64" width="184" height="16" rx="2" />
+
+  <!-- Texto SENA -->
+  <text
+    x="100" y="108"
+    font-family="Arial Black, Arial, sans-serif"
+    font-size="42"
+    font-weight="900"
+    text-anchor="middle"
+    letter-spacing="1"
+  >SENA</text>
+
+  <!-- Barra inferior (bajo texto) -->
+  <rect x="8" y="118" width="184" height="16" rx="2" />
+
+  <!-- Barra central del cuerpo (brazos) -->
+  <rect x="8" y="146" width="184" height="16" rx="2" />
+
+  <!-- Pierna izquierda (diagonal) -->
+  <polygon points="96,162 8,228 22,228 100,172" />
+
+  <!-- Pierna derecha (diagonal) -->
+  <polygon points="104,162 178,228 192,228 100,172" />
+</svg>

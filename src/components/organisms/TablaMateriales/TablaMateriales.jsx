@@ -1,4 +1,4 @@
-﻿import { FiInbox, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+﻿import { FiInbox } from 'react-icons/fi'
 import { Badge } from '@/components/atoms/Badge/Badge'
 import { AccionesFila } from '@/components/molecules/AccionesFila/AccionesFila'
 
@@ -15,25 +15,14 @@ const columnas = ['Material', 'Categoría', 'Ubicación', 'Stock', 'Estado', 'Ac
 
 export const TablaMateriales = ({
   materiales = [],
-  totalRegistros = 0,
-  paginaActual = 1,
-  porPagina = 10,
-  onAnterior,
-  onSiguiente,
   onEditar,
   onHistorial,
   onEliminar,
 }) => {
-  const inicio      = (paginaActual - 1) * porPagina + 1
-  const fin         = Math.min(paginaActual * porPagina, totalRegistros)
-  const hayAnterior = paginaActual > 1
-  const haySiguiente = fin < totalRegistros
-  const totalPaginas = Math.ceil(totalRegistros / porPagina)
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 
-      {/* Tabla */}
+      {/* Cabecera fija */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -48,7 +37,12 @@ export const TablaMateriales = ({
               ))}
             </tr>
           </thead>
+        </table>
+      </div>
 
+      {/* Cuerpo con scroll */}
+      <div className="overflow-y-auto overflow-x-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+        <table className="w-full text-sm">
           <tbody>
             {materiales.length === 0 ? (
               <tr>
@@ -62,12 +56,11 @@ export const TablaMateriales = ({
               materiales.map((mat, i) => (
                 <tr
                   key={mat.id}
-                  className={`border-b border-gray-50 hover:bg-[#39A900]/8/40 transition-colors ${
+                  className={`border-b border-gray-50 hover:bg-[#39A900]/5 transition-colors ${
                     i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'
                   }`}
                 >
-                  {/* Material */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5" style={{ width: '30%' }}>
                     <p className="font-semibold text-gray-800 leading-tight">{mat.nombre}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-gray-400 font-mono">{mat.sku}</span>
@@ -79,17 +72,13 @@ export const TablaMateriales = ({
                     </div>
                   </td>
 
-                  {/* Categoría */}
-                  <td className="px-5 py-3.5 text-gray-600 text-sm">{mat.categoria}</td>
+                  <td className="px-5 py-3.5 text-gray-600 text-sm" style={{ width: '20%' }}>{mat.categoria}</td>
+                  <td className="px-5 py-3.5 text-gray-600 text-sm" style={{ width: '18%' }}>{mat.ubicacion}</td>
 
-                  {/* Ubicación */}
-                  <td className="px-5 py-3.5 text-gray-600 text-sm">{mat.ubicacion}</td>
-
-                  {/* Stock */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5" style={{ width: '12%' }}>
                     <span className={`text-base font-bold ${
-                      mat.stockActual === 0      ? 'text-red-500'    :
-                      mat.stockActual <= mat.stockMinimo ? 'text-orange-500' :
+                      mat.stockActual === 0               ? 'text-red-500'    :
+                      mat.stockActual <= mat.stockMinimo  ? 'text-orange-500' :
                       'text-gray-800'
                     }`}>
                       {mat.stockActual}
@@ -99,13 +88,11 @@ export const TablaMateriales = ({
                     )}
                   </td>
 
-                  {/* Estado */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5" style={{ width: '12%' }}>
                     <Badge variante={badgeEstado(mat.estado)}>{mat.estado}</Badge>
                   </td>
 
-                  {/* Acciones */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5" style={{ width: '8%' }}>
                     <AccionesFila
                       onEditar={() => onEditar?.(mat)}
                       onHistorial={() => onHistorial?.(mat)}
@@ -119,35 +106,12 @@ export const TablaMateriales = ({
         </table>
       </div>
 
-      {/* Paginación */}
-      {totalRegistros > 0 && (
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50/50">
-          <p className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-700">{inicio}–{fin}</span> de{' '}
-            <span className="font-semibold text-gray-700">{totalRegistros}</span> materiales
+      {/* Pie con total */}
+      {materiales.length > 0 && (
+        <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50/50">
+          <p className="text-xs text-gray-400">
+            <span className="font-semibold text-gray-600">{materiales.length}</span> material{materiales.length !== 1 ? 'es' : ''}
           </p>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onAnterior}
-              disabled={!hayAnterior}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:border-[#39A900] hover:text-[#39A900] hover:bg-[#39A900]/8 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              <FiChevronLeft size={14} /> Anterior
-            </button>
-
-            <span className="text-xs text-gray-400 px-1">
-              {paginaActual} / {totalPaginas}
-            </span>
-
-            <button
-              onClick={onSiguiente}
-              disabled={!haySiguiente}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:border-[#39A900] hover:text-[#39A900] hover:bg-[#39A900]/8 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              Siguiente <FiChevronRight size={14} />
-            </button>
-          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { FiPlus } from 'react-icons/fi'
 import { DashboardLayout } from '@/components/templates/DashboardLayout/DashboardLayout'
 import { ModalFormularioSimple } from '@/components/organisms/ModalFormularioSimple/ModalFormularioSimple'
@@ -11,9 +11,10 @@ import { AccionesFila } from '@/components/molecules/AccionesFila/AccionesFila'
 import { ubicacionesService } from '@/services/ubicacionesService'
 import { tiposUbicacionService } from '@/services/tiposUbicacionService'
 import { areasService } from '@/services/areasService'
+import { usuariosService } from '@/services/usuariosService'
 import { useToast } from '@/hooks/useToast'
 
-const VACIO = { nombre: '', descripcion: '', tipoUbicacionId: '', areaId: '', estado: 'activo' }
+const VACIO = { nombre: '', descripcion: '', tipoUbicacionId: '', areaId: '', encargadoId: '', estado: 'activo' }
 
 const ESTADOS = [
   { value: 'activo',   label: 'Activo'   },
@@ -25,6 +26,7 @@ export default function UbicacionesPage() {
   const [lista, setLista] = useState([])
   const [tipos, setTipos] = useState([])
   const [areas, setAreas] = useState([])
+  const [usuarios, setUsuarios] = useState([])
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState(null)
   const [form, setForm] = useState(VACIO)
@@ -46,25 +48,32 @@ export default function UbicacionesPage() {
 
   const cargarOpciones = async () => {
     try {
-      const [tiposData, areasData] = await Promise.all([
+      const [tiposData, areasData, usuariosData] = await Promise.all([
         tiposUbicacionService.getAll(),
         areasService.getAll(),
+        usuariosService.getAll(),
       ])
-      const arrTipos = Array.isArray(tiposData) ? tiposData : tiposData.data ?? []
-      const arrAreas = Array.isArray(areasData) ? areasData : areasData.data ?? []
+      const arrTipos     = Array.isArray(tiposData)    ? tiposData    : tiposData.data    ?? []
+      const arrAreas     = Array.isArray(areasData)    ? areasData    : areasData.data    ?? []
+      const arrUsuarios  = Array.isArray(usuariosData) ? usuariosData : usuariosData.data ?? []
       setTipos(arrTipos.map(t => ({ value: t.id, label: t.nombre })))
       setAreas(arrAreas.map(a => ({ value: a.id, label: a.nombre })))
+      setUsuarios([
+        { value: '', label: 'Sin encargado' },
+        ...arrUsuarios.map(u => ({ value: u.id, label: u.nombre })),
+      ])
     } catch { toast.error('Error al cargar opciones') }
   }
 
   const abrir = (item = null) => {
     setEditando(item)
     setForm(item ? {
-      nombre: item.nombre ?? '',
-      descripcion: item.descripcion ?? '',
+      nombre:          item.nombre          ?? '',
+      descripcion:     item.descripcion     ?? '',
       tipoUbicacionId: item.tipoUbicacion?.id ?? item.tipoUbicacionId ?? '',
-      areaId: item.area?.id ?? item.areaId ?? '',
-      estado: item.estado ?? 'activo',
+      areaId:          item.area?.id          ?? item.areaId          ?? '',
+      encargadoId:     item.encargado?.id     ?? item.encargadoId     ?? '',
+      estado:          item.estado            ?? 'activo',
     } : VACIO)
     setError('')
     setModal(true)
@@ -77,11 +86,12 @@ export default function UbicacionesPage() {
     setCargando(true)
     try {
       const datos = {
-        nombre: form.nombre.trim(),
-        descripcion: form.descripcion.trim(),
+        nombre:          form.nombre.trim(),
+        descripcion:     form.descripcion.trim(),
         tipoUbicacionId: form.tipoUbicacionId,
-        areaId: form.areaId,
-        estado: form.estado,
+        areaId:          form.areaId,
+        estado:          form.estado,
+        ...(form.encargadoId ? { encargadoId: form.encargadoId } : {}),
       }
       editando
         ? await ubicacionesService.actualizar(editando.id, datos)
@@ -122,20 +132,21 @@ export default function UbicacionesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#39A900]">
-                  {['Nombre', 'Descripción', 'Tipo de Ubicación', 'Área', 'Estado', 'Acciones'].map(c => (
+                  {['Nombre', 'Descripción', 'Tipo de Ubicación', 'Área', 'Encargado', 'Estado', 'Acciones'].map(c => (
                     <th key={c} className="px-5 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{c}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {lista.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-gray-400">Sin ubicaciones registradas</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-10 text-center text-gray-400">Sin ubicaciones registradas</td></tr>
                 ) : lista.map(u => (
                   <tr key={u.id} className="hover:bg-[#39A900]/5 transition-colors">
                     <td className="px-5 py-4 font-medium text-gray-900">{u.nombre}</td>
                     <td className="px-5 py-4 text-gray-600 max-w-xs truncate">{u.descripcion ?? '—'}</td>
                     <td className="px-5 py-4 text-gray-600">{u.tipoUbicacion?.nombre ?? '—'}</td>
                     <td className="px-5 py-4 text-gray-600">{u.area?.nombre ?? '—'}</td>
+                    <td className="px-5 py-4 text-gray-600">{u.encargado?.nombre ?? '—'}</td>
                     <td className="px-5 py-4">
                       <Badge variante={u.estado === 'activo' ? 'success' : 'default'}>{u.estado ?? 'activo'}</Badge>
                     </td>
@@ -185,6 +196,13 @@ export default function UbicacionesPage() {
           value={form.areaId}
           onChange={e => setForm({ ...form, areaId: e.target.value })}
           name="areaId"
+        />
+        <SelectOpcion
+          label="Encargado de Bodega"
+          options={usuarios}
+          value={form.encargadoId}
+          onChange={e => setForm({ ...form, encargadoId: e.target.value })}
+          name="encargadoId"
         />
         <SelectOpcion
           label="Estado"

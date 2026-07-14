@@ -3,11 +3,12 @@ import { DashboardLayout } from '@/components/templates/DashboardLayout/Dashboar
 import { KpiCard } from '@/components/molecules/KpiCard/KpiCard'
 import { GraficosSection } from '@/components/organisms/GraficosSection/GraficosSection'
 import { TablaMovimientos } from '@/components/organisms/TablaMovimientos/TablaMovimientos'
-import { FiPackage, FiAlertTriangle, FiRepeat, FiClipboard } from 'react-icons/fi'
+import { FiPackage, FiAlertTriangle, FiRepeat, FiClipboard, FiClock } from 'react-icons/fi'
 import { materialesService } from '@/services/materialesService'
 import { movimientosService } from '@/services/movimientosService'
 import { prestamosService } from '@/services/prestamosService'
 import { useAuth } from '@/hooks/useAuth'
+import { normalizeList } from '@/utils/normalizeList'
 
 const saludo = () => {
   const h = new Date().getHours()
@@ -26,25 +27,33 @@ export default function DashboardPage() {
     { titulo: 'Movimientos Hoy',      valor: '—', icono: FiRepeat,        color: 'blue'   },
     { titulo: 'Préstamos Pendientes', valor: '—', icono: FiClipboard,     color: 'yellow' },
   ])
+  const [bajoStock, setBajoStock] = useState([])
+  const [porVencer, setPorVencer] = useState([])
 
   useEffect(() => {
     const cargar = async () => {
       try {
-        const [materiales, consumibles, movimientos, prestamos] = await Promise.all([
+        const [materiales, bajoStockData, consumibles, movimientos, prestamos] = await Promise.all([
           materialesService.getAll().catch(() => []),
+          materialesService.getBajoStock().catch(() => []),
           materialesService.getAllConsumibles().catch(() => []),
           movimientosService.getAll().catch(() => []),
           prestamosService.getAll().catch(() => []),
         ])
 
-        const matList  = Array.isArray(materiales)  ? materiales  : (materiales?.data  ?? [])
-        const consList = Array.isArray(consumibles) ? consumibles : (consumibles?.data ?? [])
-        const movList  = Array.isArray(movimientos) ? movimientos : (movimientos?.data  ?? [])
-        const presList = Array.isArray(prestamos)   ? prestamos   : (prestamos?.data   ?? [])
+        const matList   = normalizeList(materiales)
+        const bsList    = normalizeList(bajoStockData)
+        const consList  = normalizeList(consumibles)
+        const movList   = normalizeList(movimientos)
+        const presList  = normalizeList(prestamos)
 
-        const stockBajo = consList.filter(
-          (c) => Number(c.stockActual ?? 0) <= Number(c.stockMinimo ?? 0)
-        ).length
+        const hoy30 = new Date(); hoy30.setDate(hoy30.getDate() + 30)
+        const vencientesList = consList.filter((c) => {
+          if (!c.fechaVencimiento) return false
+          const fv = new Date(c.fechaVencimiento)
+          return fv <= hoy30
+        }).sort((a, b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento))
+        setPorVencer(vencientesList)
 
         const hoy    = new Date().toISOString().split('T')[0]
         const movHoy = movList.filter((m) =>
@@ -56,11 +65,12 @@ export default function DashboardPage() {
         ).length
 
         setKpis([
-          { titulo: 'Total Materiales',     valor: matList.length.toString(),  icono: FiPackage,      color: 'green',  subtitulo: 'en inventario' },
-          { titulo: 'Stock Bajo',           valor: stockBajo.toString(),        icono: FiAlertTriangle,color: 'red',    subtitulo: 'requieren atención' },
-          { titulo: 'Movimientos Hoy',      valor: movHoy.toString(),           icono: FiRepeat,       color: 'blue',   subtitulo: 'entradas y salidas' },
-          { titulo: 'Préstamos Pendientes', valor: pendientes.toString(),       icono: FiClipboard,    color: 'yellow', subtitulo: 'esperando aprobación' },
+          { titulo: 'Total Materiales',     valor: matList.length.toString(), icono: FiPackage,       color: 'green',  subtitulo: 'en inventario' },
+          { titulo: 'Stock Bajo',           valor: bsList.length.toString(),  icono: FiAlertTriangle, color: 'red',    subtitulo: 'requieren atención' },
+          { titulo: 'Movimientos Hoy',      valor: movHoy.toString(),         icono: FiRepeat,        color: 'blue',   subtitulo: 'entradas y salidas' },
+          { titulo: 'Préstamos Pendientes', valor: pendientes.toString(),     icono: FiClipboard,     color: 'yellow', subtitulo: 'esperando aprobación' },
         ])
+        setBajoStock(bsList)
       } catch {
         // mantiene valores '—'
       }
@@ -91,6 +101,79 @@ export default function DashboardPage() {
             <KpiCard key={kpi.titulo} {...kpi} />
           ))}
         </div>
+
+        {/* Alerta de stock bajo */}
+        {bajoStock.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FiAlertTriangle className="text-red-500 shrink-0" size={18} />
+              <h2 className="font-semibold text-red-700 text-sm">
+                {bajoStock.length} consumible{bajoStock.length > 1 ? 's' : ''} con stock crítico
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-red-600 border-b border-red-200">
+                    <th className="pb-2 font-semibold">Material</th>
+                    <th className="pb-2 font-semibold text-right">Stock actual</th>
+                    <th className="pb-2 font-semibold text-right">Stock mínimo</th>
+                    <th className="pb-2 font-semibold text-right">Unidad</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-red-100">
+                  {bajoStock.map((item) => (
+                    <tr key={item.id} className="text-gray-700">
+                      <td className="py-1.5">{item.materiale?.nombre ?? '—'}</td>
+                      <td className="py-1.5 text-right font-semibold text-red-600">{item.stockActual}</td>
+                      <td className="py-1.5 text-right">{item.stockMinimo}</td>
+                      <td className="py-1.5 text-right text-gray-500">{item.unidadMedida}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Alerta de consumibles por vencer */}
+        {porVencer.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FiClock className="text-amber-500 shrink-0" size={18} />
+              <h2 className="font-semibold text-amber-700 text-sm">
+                {porVencer.length} consumible{porVencer.length > 1 ? 's' : ''} próximo{porVencer.length > 1 ? 's' : ''} a vencer
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-amber-600 border-b border-amber-200">
+                    <th className="pb-2 font-semibold">Material</th>
+                    <th className="pb-2 font-semibold text-right">Stock</th>
+                    <th className="pb-2 font-semibold text-right">Unidad</th>
+                    <th className="pb-2 font-semibold text-right">Vence</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  {porVencer.map((item) => {
+                    const fv    = new Date(item.fechaVencimiento)
+                    const dias  = Math.floor((fv - Date.now()) / 86_400_000)
+                    const label = dias < 0 ? `Venció hace ${Math.abs(dias)}d` : dias === 0 ? 'Vence hoy' : `En ${dias}d`
+                    return (
+                      <tr key={item.id} className="text-gray-700">
+                        <td className="py-1.5">{item.materiale?.nombre ?? '—'}</td>
+                        <td className="py-1.5 text-right">{item.stockActual}</td>
+                        <td className="py-1.5 text-right text-gray-500">{item.unidadMedida}</td>
+                        <td className={`py-1.5 text-right font-semibold ${dias < 0 ? 'text-red-600' : 'text-amber-600'}`}>{label}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <GraficosSection />
         <TablaMovimientos />

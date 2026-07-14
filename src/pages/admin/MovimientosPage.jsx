@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useMemo } from 'react'
-import { FiPlus, FiSearch } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiDownload } from 'react-icons/fi'
 import { DashboardLayout } from '@/components/templates/DashboardLayout/DashboardLayout'
 import { ModalFormularioSimple } from '@/components/organisms/ModalFormularioSimple/ModalFormularioSimple'
 import { Badge } from '@/components/atoms/Badge/Badge'
@@ -8,9 +8,9 @@ import { InputTexto } from '@/components/atoms/InputTexto/InputTexto'
 import { SelectOpcion } from '@/components/atoms/SelectOpcion/SelectOpcion'
 import { movimientosService } from '@/services/movimientosService'
 import { usuariosService } from '@/services/usuariosService'
-import { fichasService } from '@/services/fichasService'
 import { materialesService } from '@/services/materialesService'
 import { useToast } from '@/hooks/useToast'
+import { exportToExcel } from '@/utils/exportToExcel'
 
 const TIPOS = [
   { value: 'ENTRADA', label: 'Entrada' },
@@ -31,14 +31,13 @@ const TIPO_VARIANTE = {
 }
 
 const TIPO_LABEL = Object.fromEntries(TIPOS.map(t => [t.value, t.label]))
-const VACIO = { tipo: '', materialConsumibleId: '', cantidad: '', descripcion: '', usuarioId: '', fichaId: '' }
+const VACIO = { tipo: '', materialConsumibleId: '', cantidad: '', descripcion: '', usuarioId: '' }
 const POR_PAGINA = 10
 
 export default function MovimientosPage() {
   const toast = useToast()
   const [lista, setLista] = useState([])
   const [usuarios, setUsuarios] = useState([])
-  const [fichas, setFichas] = useState([])
   const [consumibles, setConsumibles] = useState([])
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(VACIO)
@@ -54,7 +53,7 @@ export default function MovimientosPage() {
   // Paginación
   const [pagina, setPagina] = useState(1)
 
-  useEffect(() => { cargar(); cargarUsuarios(); cargarFichas(); cargarConsumibles() }, [])
+  useEffect(() => { cargar(); cargarUsuarios(); cargarConsumibles() }, [])
 
   const cargar = async () => {
     try {
@@ -68,14 +67,6 @@ export default function MovimientosPage() {
       const data = await usuariosService.getAll()
       const arr = Array.isArray(data) ? data : data.data ?? []
       setUsuarios(arr.map(u => ({ value: u.id, label: u.nombre })))
-    } catch {}
-  }
-
-  const cargarFichas = async () => {
-    try {
-      const data = await fichasService.getAll()
-      const arr = Array.isArray(data) ? data : data.data ?? []
-      setFichas(arr.map(f => ({ value: f.id, label: f.codigoFicha ?? f.codigo ?? f.id })))
     } catch {}
   }
 
@@ -102,7 +93,6 @@ export default function MovimientosPage() {
         cantidad: Number(form.cantidad),
         descripcion: form.descripcion?.trim() || `Movimiento ${form.tipo}`,
         ...(form.usuarioId ? { usuarioId: form.usuarioId } : {}),
-        ...(form.fichaId ? { fichaId: form.fichaId } : {}),
       }
       await movimientosService.crear(datos)
       toast.success('Movimiento registrado')
@@ -152,6 +142,18 @@ export default function MovimientosPage() {
 
   const hayFiltrosActivos = filtroBusqueda || filtroTipo || filtroFechaDesde || filtroFechaHasta
 
+  const exportar = () => {
+    const filas = listaFiltrada.map((m) => ({
+      Tipo:        TIPO_LABEL[m.tipo] ?? m.tipo,
+      Material:    m.materialConsumible?.materiale?.nombre ?? m.materialItem?.materiale?.nombre ?? '—',
+      Cantidad:    m.cantidad,
+      Descripción: m.descripcion ?? '—',
+      Usuario:     m.usuario?.nombre ?? '—',
+      Fecha:       formatFecha(m.creadoEn),
+    }))
+    exportToExcel(filas, `movimientos-${new Date().toISOString().split('T')[0]}`, 'Movimientos')
+  }
+
   return (
     <>
       <DashboardLayout>
@@ -160,6 +162,18 @@ export default function MovimientosPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 page-title">Movimientos</h1>
               <p className="text-sm text-gray-500 mt-1">Registro de entradas, salidas y ajustes de materiales.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportar}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                title="Exportar a Excel"
+              >
+                <FiDownload size={14} /> Exportar
+              </button>
+              <Boton variante="primario" className="flex items-center gap-2" onClick={() => { setForm(VACIO); setError(''); setModal(true) }}>
+                <FiPlus size={16} /> Nuevo Movimiento
+              </Boton>
             </div>
           </div>
 
@@ -283,7 +297,6 @@ export default function MovimientosPage() {
         <SelectOpcion label="Tipo *" placeholder="Selecciona un tipo" options={TIPOS} value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} name="tipo" />
         <InputTexto label="Cantidad *" type="number" min="1" value={form.cantidad} onChange={e => setForm({ ...form, cantidad: e.target.value })} placeholder="Ej: 10" />
         <InputTexto label="Descripción" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} placeholder="Ej: Ingreso de materiales al almacén" />
-        <SelectOpcion label="Ficha (para KARDEX)" placeholder="Selecciona una ficha (opcional)" options={fichas} value={form.fichaId} onChange={e => setForm({ ...form, fichaId: e.target.value })} name="fichaId" />
         <SelectOpcion label="Usuario" placeholder="Selecciona un usuario (opcional)" options={usuarios} value={form.usuarioId} onChange={e => setForm({ ...form, usuarioId: e.target.value })} name="usuarioId" />
       </ModalFormularioSimple>
     </>

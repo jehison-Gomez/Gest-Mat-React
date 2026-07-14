@@ -64,10 +64,17 @@ export default function NuevoPrestamoPage() {
     value: f.id,
     label: `${f.codigoFicha ?? f.id} — ${f.programa?.nombre ?? ''}`,
   }))
-  const opcionesItems = items.map((i) => ({
-    value: i.id,
-    label: `${i.materiale?.nombre ?? 'Material'} — ${i.codigoSena ?? ''}`,
-  }))
+  const opcionesItems = items.map((i) => {
+    const nombre    = i.materiale?.nombre ?? 'Material'
+    const placa     = i.codigoSena ?? ''
+    const categoria = i.materiale?.categoriaMaterial?.nombre ?? ''
+    const ubicacion = i.materiale?.ubicacion?.nombre ?? ''
+    const partes    = [categoria, ubicacion].filter(Boolean).join(' · ')
+    return {
+      value: i.id,
+      label: `${nombre} — Placa: ${placa}${partes ? `  (${partes})` : ''}`,
+    }
+  })
   const opcionesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.nombre }))
 
   const guardar = async (e) => {

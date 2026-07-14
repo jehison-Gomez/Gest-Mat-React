@@ -7,6 +7,8 @@ const getUser = () => {
 export const prestamosService = {
   getAll: async () => (await api.get('/api/prestamos')).data,
 
+  getPorBodega: async () => (await api.get('/api/prestamos/por-bodega')).data,
+
   getMios: async () => {
     const user = getUser()
     const res = await api.get(`/api/prestamos/usuario/${user.id}`)
@@ -22,4 +24,6 @@ export const prestamosService = {
   rechazar: async (id, observacionRevision = 'Sin motivo') => (await api.post(`/api/prestamos/${id}/rechazar`, { observacionRevision })).data,
   entregar: async (id) => (await api.post(`/api/prestamos/${id}/entregar`)).data,
   devolver: async (id) => (await api.post(`/api/prestamos/${id}/devolver`)).data,
+  getHistorial: async (id) => (await api.get(`/api/prestamos/${id}/historial`)).data,
+  revisarVencidos: async () => (await api.post('/api/prestamos/revisar-vencidos')).data,
 }
